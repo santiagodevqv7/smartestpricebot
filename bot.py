@@ -105,14 +105,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(msg, parse_mode="Markdown")
  
-app = (
-    ApplicationBuilder()
-    .token(BOT_TOKEN)
-    .request(request)
-    .build()
-)
+app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+app.add_handler(
+    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+)
 
 print("🤖 Bot corriendo...")
 app.run_polling()
