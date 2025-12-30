@@ -1,44 +1,14 @@
+import os
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
-from input_resolver import resolve_input
 from price_comparator import compare_prices
-from amazon_utils import asin_to_title
 
-import urllib.parse
-import os
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 
-def build_purchase_url(store: str, query: str, link: str | None):
-    if link:
-        return link
-
-    q = urllib.parse.quote_plus(query)
-
-    fallback = {
-        "Amazon": f"https://www.amazon.com/s?k={q}",
-        "Walmart": f"https://www.walmart.com/search?q={q}",
-        "Best Buy": f"https://www.bestbuy.com/site/searchpage.jsp?st={q}",
-        "eBay": f"https://www.ebay.com/sch/i.html?_nkw={q}",
-        "Target": f"https://www.target.com/s?searchTerm={q}",
-        "Swappa": f"https://swappa.com/search?q={q}",
-        "Back Market": f"https://www.backmarket.com/en-us/search?q={q}",
-    }
-
-    return fallback.get(store)
-
-
 async def handle_message(update, context: ContextTypes.DEFAULT_TYPE):
-    user_text = update.message.text
-    resolved = resolve_input(user_text)
-
-    query = resolved["query"]
-
-    if resolved.get("store") == "amazon" and len(query) == 10:
-        title = asin_to_title(query)
-        if title:
-            query = title
+    query = update.message.text.strip()
 
     offers = compare_prices(query)
 
@@ -46,21 +16,8 @@ async def handle_message(update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ No prices found.")
         return
 
-    ALLOWED_STORES = {
-        "Amazon",
-        "Walmart",
-        "Best Buy",
-        "Target",
-        "eBay",
-        "Swappa",
-        "Back Market"
-    }
-
-    offers = [
-        o for o in offers
-        if o.get("price") is not None
-        and o.get("store") in ALLOWED_STORES
-    ]
+    # filtrar ofertas válidas
+    offers = [o for o in offers if o.get("price")]
 
     if not offers:
         await update.message.reply_text("❌ No relevant results.")
@@ -69,31 +26,27 @@ async def handle_message(update, context: ContextTypes.DEFAULT_TYPE):
     offers.sort(key=lambda x: x["price"])
 
     best = offers[0]
-    top3 = offers[:3]
+    top5 = offers[:5]
 
     msg = "🛒 *SmartestPriceBot*\n"
-    msg += f"🔍 Product: *{query.title()}*\n\n"
+    msg += f"🔍 *Product:* {query.title()}\n\n"
+
     msg += "🏆 *Best price found*\n"
+    msg += f"🥇 *{best['store']}* — *${best['price']:.2f}*\n"
 
-    best_url = build_purchase_url(
-        best["store"],
-        query,
-        best.get("link")
-    )
+    # link si existe
+    if best.get("link"):
+        msg += f"👉 [Buy here]({best['link']})\n"
 
-    msg += f"🥇 *{best['store']}* — *${best['price']}*\n"
-    if best_url:
-        msg += f"👉 [Buy here]({best_url})\n\n"
-    else:
-        msg += "\n"
+    msg += "\n📊 *Price comparison*\n"
+    for o in top5:
+        line = f"• {o['store']} — ${o['price']:.2f}"
+        if o.get("link"):
+            line += " ([link]({}))".format(o["link"])
+        msg += line + "\n"
 
-    msg += "📊 *Quick comparison*\n"
-    for o in top3:
-        url = build_purchase_url(o["store"], query, o.get("link"))
-        if url:
-            msg += f"• {o['store']} — ${o['price']} ([link]({url}))\n"
-        else:
-            msg += f"• {o['store']} — ${o['price']}\n"
+    msg += "\n⏱ _Save time by comparing prices automatically_"
+
 
     await update.message.reply_text(msg, parse_mode="Markdown")
 
