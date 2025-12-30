@@ -11,7 +11,7 @@ async def start(update, context: ContextTypes.DEFAULT_TYPE):
         "👋 *Welcome to SmartestPriceBot!*\n\n"
         "I help you find the cheapest price for any product across multiple stores in seconds.\n\n"
         "🔍 *How it works:*\n"
-        "• Send a product name (example: *AirPods Pro*)\n"
+        "• Send a product name (example: *Mario Kart World for Nintendo Switch*)\n"
         "• I compare prices across popular stores\n"
         "• You get the best deal + direct buying links\n\n"
         "💡 *Why use it?*\n"
