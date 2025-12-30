@@ -1,11 +1,27 @@
 import os
-from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
 from price_comparator import compare_prices
 
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
+async def start(update, context: ContextTypes.DEFAULT_TYPE):
+    msg = (
+        "👋 *Welcome to SmartestPriceBot!*\n\n"
+        "I help you find the cheapest price for any product across multiple stores in seconds.\n\n"
+        "🔍 *How it works:*\n"
+        "• Send a product name (example: *AirPods Pro*)\n"
+        "• I compare prices across popular stores\n"
+        "• You get the best deal + direct buying links\n\n"
+        "💡 *Why use it?*\n"
+        "• Save time (no more Googling)\n"
+        "• Avoid overpaying\n"
+        "• One message = best price\n\n"
+        "👉 *Try it now by sending a product name.*"
+    )
+
+    await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def handle_message(update, context: ContextTypes.DEFAULT_TYPE):
     query = update.message.text.strip()
@@ -54,6 +70,9 @@ async def handle_message(update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
+
+    app.add_handler(CommandHandler("start", start))
+    
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
     )
