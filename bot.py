@@ -1,10 +1,14 @@
-from telegram.ext import Updater, MessageHandler, Filters
+from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
 from input_resolver import resolve_input
 from price_comparator import compare_prices
 from amazon_utils import asin_to_title
 
 import urllib.parse
+import os
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
 
 def build_purchase_url(store: str, query: str, link: str | None):
     if link:
@@ -24,16 +28,14 @@ def build_purchase_url(store: str, query: str, link: str | None):
 
     return fallback.get(store)
 
-import os
-BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-def handle_message(update, context):
+async def handle_message(update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     resolved = resolve_input(user_text)
 
     query = resolved["query"]
 
-    if resolved["store"] == "amazon" and len(query) == 10:
+    if resolved.get("store") == "amazon" and len(query) == 10:
         title = asin_to_title(query)
         if title:
             query = title
@@ -41,7 +43,7 @@ def handle_message(update, context):
     offers = compare_prices(query)
 
     if not offers:
-        update.message.reply_text("❌ No prices found.")
+        await update.message.reply_text("❌ No prices found.")
         return
 
     ALLOWED_STORES = {
@@ -61,7 +63,7 @@ def handle_message(update, context):
     ]
 
     if not offers:
-        update.message.reply_text("❌ No relevant results.")
+        await update.message.reply_text("❌ No relevant results.")
         return
 
     offers.sort(key=lambda x: x["price"])
@@ -71,7 +73,6 @@ def handle_message(update, context):
 
     msg = "🛒 *SmartestPriceBot*\n"
     msg += f"🔍 Product: *{query.title()}*\n\n"
-
     msg += "🏆 *Best price found*\n"
 
     best_url = build_purchase_url(
@@ -94,13 +95,19 @@ def handle_message(update, context):
         else:
             msg += f"• {o['store']} — ${o['price']}\n"
 
-    update.message.reply_text(msg, parse_mode="Markdown")
+    await update.message.reply_text(msg, parse_mode="Markdown")
 
-updater = Updater(BOT_TOKEN, use_context=True)
-dp = updater.dispatcher
 
-dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+def main():
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-print("🤖 Bot running...")
-updater.start_polling()
-updater.idle()
+    app.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+    )
+
+    print("🤖 Bot running...")
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()
